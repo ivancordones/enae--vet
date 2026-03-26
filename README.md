@@ -134,5 +134,22 @@ After this ticket, the repo contains a minimal but testable backend skeleton:
    uvicorn enae_vet.app:app --reload
    ```
 
+## 8. Simple chatbot run (SCRUM-6)
+
+The initial chatbot for `SCRUM-6` is intentionally minimal:
+- LangChain in Python.
+- No memory.
+- No RAG.
+- No tools.
+
+Set your OpenAI key and run the Flask service:
+
+```bash
+set OPENAI_API_KEY=your_key_here
+python -m enae_vet.chatbot.server
+```
+
+Then open `http://localhost:5000` and send a message through the basic chat form.
+
 > Note: Docker, full DB setup, and CI workflows will be added in future tickets, following this baseline architecture and workflow.
 
