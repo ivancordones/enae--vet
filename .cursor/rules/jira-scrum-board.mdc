@@ -1,0 +1,25 @@
+---
+description: Guidance for using the SCRUM Jira board as the primary source of truth for tickets and implementation work.
+alwaysApply: true
+---
+
+# Jira SCRUM Board Usage
+
+Use the SCRUM Jira board at `https://ivancordonesnunez.atlassian.net/jira/software/projects/SCRUM/boards/1` as the **primary source of truth** for work items, tickets, and project status.
+
+## Ticket Interpretation
+
+- When a ticket key like `SCRUM-123` is mentioned, assume it refers to an issue on this Jira board.
+- When implementing a ticket:
+  - Align behavior, acceptance criteria, and edge cases with the Jira ticket description, comments, and attachments.
+  - If requirements are ambiguous, make reasonable assumptions and clearly document them in code comments or commit messages.
+
+## Communication & References
+
+- When summarizing work related to a ticket, explicitly reference the ticket key (e.g., `SCRUM-123`) and this Jira board.
+- Prefer phrasing like: “Implementation for `SCRUM-123` (see Jira SCRUM board)” when describing changes or plans.
+
+## Scope
+
+- Apply this guidance to **all conversations** in this project where Jira tickets, SCRUM items, or task IDs are referenced.
+

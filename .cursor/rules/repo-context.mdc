@@ -1,0 +1,10 @@
+---
+description: Business constraint for appointment durations
+alwaysApply: true
+---
+
+# Appointment duration limit
+
+The maximum allowed appointment duration is **240 minutes** (4 hours).
+
+Repository: `https://github.com/ivancordones/enae--vet`

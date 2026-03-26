@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "enae-vet"
+version = "0.1.0"
+description = "ENAE VET – veterinary clinic support system (baseline skeleton for SCRUM-5)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [
+  { name = "ENAE VET Team" }
+]
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "pydantic>=2.8.0",
+  "sqlalchemy>=2.0.0",
+  "alembic>=1.13.0",
+  "psycopg[binary,pool]>=3.1.0",
+  "flask>=3.0.0",
+  "langchain-core>=0.2.0",
+  "langchain-openai>=0.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-cov>=4.1.0",
+  "httpx>=0.27.0",
+  "ruff>=0.6.0",
+  "requests>=2.32.0",
+  "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://ivancordonesnunez.atlassian.net/jira/software/projects/SCRUM"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+select = ["E", "F", "I"]
+
