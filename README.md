@@ -84,6 +84,10 @@ For more detail, see `docs/architecture/overview.md`.
 Core documentation entry points for ENAE VET:
 
 - `README.md` (this file): high‑level overview, stack, workflow, and quickstart.
+- **Domain (SCRUM-14 / VET-14)** — clínica / esterilización / agenda:
+  - [`docs/domain/glossary-and-preparation.md`](docs/domain/glossary-and-preparation.md) — glosario y reglas preparatorias.
+  - [`docs/domain/event-storming-sterilization-booking.md`](docs/domain/event-storming-sterilization-booking.md) — Event Storming (Mermaid) del flujo de reserva.
+  - [`docs/domain/business-rules.md`](docs/domain/business-rules.md) — reglas operativas (Tetris, 240 min/día, derivaciones).
 - `docs/architecture/overview.md`: system architecture details.
 - `docs/architecture/c4/`: C4 diagrams (Context / Container / Component), to be added.
 - `docs/adr/`: Architecture Decision Records.
