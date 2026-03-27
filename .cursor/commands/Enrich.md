@@ -59,7 +59,22 @@ Follow this exact sequence every time this command is run:
 6. **Present the updated description for application**
    - Muestra al usuario la nueva descripción completa que debería sustituir a la actual en Jira (no como comentario).
    - Indica claramente que **no has implementado la tarea**, solo enriquecido y estructurado el ticket.
-   - Si el usuario lo pide y están disponibles las herramientas de Atlassian MCP, puedes preparar la llamada para actualizar el campo `description` del ticket.
+
+7. **Aplicar en Jira (Atlassian MCP) — integración obligatoria cuando el usuario pida enriquecer un ticket concreto**
+   - Antes de llamar a cualquier herramienta MCP, lee el descriptor JSON en `mcps/user-Atlassian/tools/` correspondiente (p. ej. `getJiraIssue.json`, `editJiraIssue.json`).
+   - Obtén `cloudId` con `getAccessibleAtlassianResources` si no lo tienes (UUID del sitio o hostname `*.atlassian.net`).
+   - **Leer estado actual:** `getJiraIssue` con `cloudId`, `issueIdOrKey` (p. ej. `SCRUM-11`), `responseContentFormat: "markdown"`.
+   - **Escribir descripción enriquecida:** `editJiraIssue` con `cloudId`, `issueIdOrKey`, `contentFormat: "markdown"`, `fields: { "description": "<markdown completo>" }`.
+   - Opcional: `addCommentToJiraIssue` con resumen de cambios o enlace a PR (solo si aporta trazabilidad; la descripción sigue siendo la fuente principal).
+   - Referencia de tablero: [Jira SCRUM board — ENAE VET](https://ivancordonesnunez.atlassian.net/jira/software/projects/SCRUM/boards/1).
+
+8. **Mini-encuesta de refinamiento (PM, al final o en el paso 3)**
+   Responde o pide al PO estas comprobaciones (sí/no); si alguna es “no”, aclara en el ticket o en preguntas:
+   - ¿El objetivo del ticket es único y cerrable en un sprint razonable?
+   - ¿Los AC son verificables sin ambigüedad?
+   - ¿Hay dependencias externas (personas, credenciales, repos) identificadas?
+   - ¿El alcance encaja con la épica / el roadmap del tablero SCRUM?
+   - ¿Debemos partir el ticket en dos o más ítems?
 
 Throughout this workflow:
 - Act as a **project manager**: tu prioridad es claridad, alineamiento con la arquitectura/stack del proyecto y buena trazabilidad.
