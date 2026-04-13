@@ -10,10 +10,10 @@ from api.availability import check_mock_availability, pickup_window
 from api.domain import (
     analytics_requirement_message,
     as_dict,
-    build_scope_footer,
     classify_intent,
     extract_entities,
     from_dict,
+    next_missing_question,
 )
 from api.rag import answer_with_rag
 
@@ -30,24 +30,48 @@ def _json_response(handler: BaseHTTPRequestHandler, payload: dict[str, Any], sta
 
 def _extract_day(message: str) -> str | None:
     text = message.lower()
-    for day in ("monday", "tuesday", "wednesday", "thursday", "friday", "sábado", "sabado", "saturday", "sunday"):
-        if day in text:
-            return day
+    day_map = {
+        "monday": "monday",
+        "lunes": "monday",
+        "tuesday": "tuesday",
+        "martes": "tuesday",
+        "wednesday": "wednesday",
+        "miercoles": "wednesday",
+        "miércoles": "wednesday",
+        "thursday": "thursday",
+        "jueves": "thursday",
+        "friday": "friday",
+        "viernes": "friday",
+        "saturday": "saturday",
+        "sabado": "saturday",
+        "sábado": "saturday",
+        "sunday": "sunday",
+        "domingo": "sunday",
+    }
+    for token, canonical_day in day_map.items():
+        if token in text:
+            return canonical_day
     return None
 
 
 def _base_info_reply(state: Any) -> str:
-    species_text = state.species or "your pet"
-    details = [
-        f"I can guide you through sterilization for {species_text}.",
-        "Please share species, sex, age, and whether the pet is in heat so I can assess requirements.",
-    ]
-    if state.species:
+    details = []
+    missing_question = next_missing_question(state)
+    if missing_question:
+        details.append(missing_question)
+    elif state.species:
+        details.append(f"Great, I have the key intake data for your {state.species}.")
         details.append(pickup_window(state.species))
     analytics_note = analytics_requirement_message(state)
     if analytics_note:
         details.append(analytics_note)
-    details.append(build_scope_footer())
+    if state.in_heat is True:
+        details.append(
+            "Because your pet is in heat, surgery cannot be scheduled yet. "
+            "We can continue once the heat cycle ends."
+        )
+    if not details:
+        return "I can help with sterilization logistics. Tell me what you need next."
     return " ".join(details)
 
 
@@ -57,6 +81,7 @@ def _compose_reply(message: str, state: Any) -> str:
     day = _extract_day(message)
 
     if intent == "emergency":
+        state.handoff_state = True
         return (
             "This sounds like an emergency. Please contact the clinic immediately by phone "
             "or go to the nearest 24/7 emergency veterinary center right now. "
@@ -64,6 +89,7 @@ def _compose_reply(message: str, state: Any) -> str:
         )
 
     if intent == "handoff_request":
+        state.handoff_state = True
         return (
             "I will hand this over to a human team member. Please leave your phone number, "
             "pet species, and preferred callback time, and reception will contact you."
@@ -77,6 +103,26 @@ def _compose_reply(message: str, state: Any) -> str:
         return rag_answer
 
     if intent == "booking_or_availability":
+        state.booking_intent = True
+        missing_question = next_missing_question(state)
+        if missing_question:
+            return (
+                "Before checking availability, I need one detail: "
+                f"{missing_question}"
+            )
+
+        if state.in_heat is True:
+            return (
+                "I cannot schedule surgery while the pet is in heat. "
+                "Please wait until the heat period ends, then I can check dates."
+            )
+
+        if day is None:
+            return (
+                "I can check booking now. Please tell me your preferred day "
+                "(Monday to Thursday)."
+            )
+
         availability_result = check_mock_availability(
             species=state.species,
             sex=state.sex,
@@ -89,10 +135,31 @@ def _compose_reply(message: str, state: Any) -> str:
         )
 
     if intent == "greeting":
+        missing_question = next_missing_question(state)
+        if missing_question:
+            return (
+                "Hello, I am ENAE VET assistant for sterilization/castration appointments. "
+                f"{missing_question}"
+            )
+        return "Hello again. I already have your pet details. How can I help next?"
+
+    if state.handoff_state:
         return (
-            "Hello, I am ENAE VET assistant for sterilization/castration appointments. "
-            "Tell me your pet species, sex, age, and if the pet is currently in heat."
+            "A human handoff is already in progress. Share any extra detail and our "
+            "reception team will continue."
         )
+
+    if state.booking_intent:
+        missing_question = next_missing_question(state)
+        if missing_question:
+            return f"To continue your booking, I still need: {missing_question}"
+        if state.in_heat is True:
+            return (
+                "I still cannot schedule surgery because your pet is in heat. "
+                "Please contact us again once the heat cycle ends."
+            )
+        if day is None:
+            return "To continue your booking, tell me a preferred day (Monday to Thursday)."
 
     return _base_info_reply(state)
 

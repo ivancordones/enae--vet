@@ -17,6 +17,8 @@ EMERGENCY_TERMS = (
     "seizure",
     "not breathing",
     "no respira",
+    "cannot stand",
+    "no se levanta",
 )
 
 
@@ -60,6 +62,9 @@ RAG_TERMS = (
     "agua",
     "food",
     "water",
+    "admission",
+    "admisión",
+    "admision",
 )
 
 
@@ -72,7 +77,10 @@ class SessionState:
     sex: str | None = None
     pet_age_years: int | None = None
     in_heat: bool | None = None
+    booking_intent: bool = False
+    handoff_state: bool = False
     last_intent: str | None = None
+    missing_fields: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
 
 
@@ -81,25 +89,47 @@ def extract_entities(message: str, state: SessionState) -> SessionState:
     text = message.lower()
 
     for token, species in SPECIES_TERMS.items():
-        if token in text:
+        if re.search(rf"\b{re.escape(token)}s?\b", text):
             state.species = species
             break
 
-    if any(token in text for token in ("female", "hembra", "perra", "gata")):
+    # Sex extraction is intentionally strict:
+    # perro/gato can be generic references, so they are not male markers.
+    if any(token in text for token in ("female", "hembra", "perra", "gata", "she", "her")):
         state.sex = "female"
-    elif any(token in text for token in ("male", "macho", "perro", "gato")):
+    elif any(token in text for token in ("male", "macho", "he", "him")):
         state.sex = "male"
 
-    age_match = re.search(r"\b(\d{1,2})\s*(años|anos|years|year)\b", text)
+    age_match = re.search(r"\b(\d{1,2})\s*(años|anos|year|years|yr|yrs)\b", text)
     if age_match:
         state.pet_age_years = int(age_match.group(1))
 
-    if "in heat" in text or "celo" in text:
-        if any(flag in text for flag in ("not", "no ", "isn't", "isnt", "without")):
-            state.in_heat = False
-        else:
-            state.in_heat = True
+    negative_heat_patterns = (
+        r"\bno\s+est[aá]\s+en\s+celo\b",
+        r"\bnot\s+in\s+heat\b",
+        r"\bisn['’]?t\s+in\s+heat\b",
+        r"\bwithout\s+heat\b",
+        r"\bsin\s+celo\b",
+    )
+    positive_heat_patterns = (
+        r"\best[aá]\s+en\s+celo\b",
+        r"\ben\s+celo\b",
+        r"\bin\s+heat\b",
+        r"\bcurrently\s+in\s+heat\b",
+    )
 
+    if any(re.search(pattern, text) for pattern in negative_heat_patterns):
+        state.in_heat = False
+    elif any(re.search(pattern, text) for pattern in positive_heat_patterns):
+        state.in_heat = True
+
+    if any(token in text for token in BOOKING_TERMS):
+        state.booking_intent = True
+
+    if any(token in text for token in ("human", "agent", "persona", "recepción", "recepcion", "asesor")):
+        state.handoff_state = True
+
+    state.missing_fields = missing_intake_fields(state)
     return state
 
 
@@ -139,6 +169,36 @@ def build_scope_footer() -> str:
     )
 
 
+def missing_intake_fields(state: SessionState) -> list[str]:
+    """Returns ordered missing intake fields."""
+    missing: list[str] = []
+    if state.species is None:
+        missing.append("species")
+    if state.sex is None:
+        missing.append("sex")
+    if state.pet_age_years is None:
+        missing.append("age")
+    if state.in_heat is None:
+        missing.append("in_heat")
+    return missing
+
+
+def next_missing_question(state: SessionState) -> str | None:
+    """Returns only the next relevant question for intake."""
+    missing = missing_intake_fields(state)
+    if not missing:
+        return None
+
+    next_field = missing[0]
+    if next_field == "species":
+        return "What species is your pet (dog or cat)?"
+    if next_field == "sex":
+        return "Is your pet male or female?"
+    if next_field == "age":
+        return "How old is your pet in years?"
+    return "Is your pet currently in heat?"
+
+
 def as_dict(state: SessionState) -> dict[str, Any]:
     """Serializes session state for safe JSON-like storage."""
     return {
@@ -147,7 +207,10 @@ def as_dict(state: SessionState) -> dict[str, Any]:
         "sex": state.sex,
         "pet_age_years": state.pet_age_years,
         "in_heat": state.in_heat,
+        "booking_intent": state.booking_intent,
+        "handoff_state": state.handoff_state,
         "last_intent": state.last_intent,
+        "missing_fields": state.missing_fields,
         "notes": state.notes,
     }
 
@@ -162,6 +225,9 @@ def from_dict(data: dict[str, Any] | None) -> SessionState:
         sex=data.get("sex"),
         pet_age_years=data.get("pet_age_years"),
         in_heat=data.get("in_heat"),
+        booking_intent=data.get("booking_intent", False),
+        handoff_state=data.get("handoff_state", False),
         last_intent=data.get("last_intent"),
+        missing_fields=list(data.get("missing_fields", [])),
         notes=list(data.get("notes", [])),
     )
