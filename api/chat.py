@@ -117,10 +117,47 @@ def _eligibility_reply(state: Any, message: str) -> str:
     return "Bloodwork is mandatory if the pet is older than 6 years; otherwise it is usually recommended."
 
 
+def _human_handoff_reply() -> str:
+    return (
+        "I will hand this over to a human team member. "
+        "Please contact reception by phone, or leave your phone number "
+        "and preferred callback time."
+    )
+
+
+def _is_human_handoff_message(message: str) -> bool:
+    text = message.lower()
+    patterns = (
+        "speak to a person",
+        "speak with someone",
+        "talk to someone",
+        "talk to a person",
+        "human",
+        "invoice",
+        "billing",
+        "factura",
+        "reception",
+        "recepcion",
+        "recepción",
+        "call me",
+        "callback",
+    )
+    return any(pattern in text for pattern in patterns)
+
+
 def _compose_reply(message: str, state: Any) -> str:
     text = message.lower()
     previous_intent = state.last_intent
+    day = _extract_day(message)
+
+    # High-priority override: human handoff must ignore previous booking state.
+    if _is_human_handoff_message(message):
+        state.handoff_state = True
+        state.last_intent = "handoff_request"
+        return _human_handoff_reply()
+
     intent = classify_intent(message)
+
     if (
         intent == "sterilization_info"
         and previous_intent == "query_dropoff_window"
@@ -139,8 +176,8 @@ def _compose_reply(message: str, state: Any) -> str:
         and "what if" in text
     ):
         intent = "query_eligibility"
+
     state.last_intent = intent
-    day = _extract_day(message)
 
     if intent == "emergency":
         state.handoff_state = True
@@ -158,10 +195,7 @@ def _compose_reply(message: str, state: Any) -> str:
 
     if intent == "handoff_request":
         state.handoff_state = True
-        return (
-            "I will hand this over to a human team member. "
-            "Please contact reception by phone, or leave your phone number and preferred callback time."
-        )
+        return _human_handoff_reply()
 
     if intent == "preop_rag":
         rag_answer = answer_with_rag(message)
