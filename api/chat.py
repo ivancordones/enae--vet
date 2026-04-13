@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler
 import json
+import re
 from typing import Any
 
-from api.availability import check_mock_availability, pickup_window
+from api.availability import check_mock_availability, list_available_days, pickup_window
 from api.domain import (
     analytics_requirement_message,
     as_dict,
@@ -94,8 +95,10 @@ def _pickup_reply(state: Any, message: str) -> str:
 
 def _eligibility_reply(state: Any, message: str) -> str:
     text = message.lower()
-    age5 = "5" in text and any(token in text for token in ("year", "years", "año", "años", "anos"))
-    if age5:
+    age_match = re.search(r"\b(\d{1,2})\b", text)
+    if age_match and "what if" in text:
+        state.pet_age_years = int(age_match.group(1))
+    elif "5" in text and any(token in text for token in ("year", "years", "año", "años", "anos")):
         state.pet_age_years = 5
     if state.pet_age_years is not None and state.pet_age_years > 6:
         return "For pets older than 6 years, preoperative bloodwork is mandatory before sterilization."
@@ -203,9 +206,7 @@ def _compose_reply(message: str, state: Any) -> str:
             )
 
         if day is None:
-            if state.species:
-                return "Available surgery days are Monday to Thursday. Please tell me your preferred day."
-            return "What species is your pet (dog or cat)?"
+            return list_available_days(state.species, state.sex, state.in_heat)
 
         availability_result = check_mock_availability(
             species=state.species,

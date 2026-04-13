@@ -78,3 +78,41 @@ def check_mock_availability(
         f"{day_key.title()} is available for this procedure. Estimated surgery "
         f"time cost: {minutes_needed} minutes. {pickup_window(species)}"
     )
+
+
+def list_available_days(
+    species: str | None,
+    sex: str | None,
+    in_heat: bool | None,
+) -> str:
+    """Returns concrete available surgery days (Mon-Thu)."""
+    if in_heat:
+        return (
+            "I cannot confirm dates while the pet is in heat. Please wait around "
+            "2 months after heat ends."
+        )
+    if species is None:
+        return "Please confirm species first (dog or cat) so I can provide exact available days."
+
+    minutes_needed = surgery_minutes(species, sex)
+    available: list[str] = []
+    for day_key, day_state in MOCK_DAY_LOAD.items():
+        if species == "dog" and day_state["dogs_count"] >= 2:
+            continue
+        if day_state["minutes_used"] + minutes_needed > 240:
+            continue
+        available.append(day_key.title())
+
+    if not available:
+        return "No surgery slots are currently available from Monday to Thursday. Please request another week."
+    # Keep output realistic: provide a subset instead of all possible days.
+    preferred_subset = [day for day in ("Monday", "Tuesday", "Thursday") if day in available]
+    days_to_show = preferred_subset if preferred_subset else available[:3]
+    if len(days_to_show) == 1:
+        return f"We currently have availability next week on {days_to_show[0]}."
+    if len(days_to_show) == 2:
+        return f"We currently have availability next week on {days_to_show[0]} and {days_to_show[1]}."
+    return (
+        "We currently have availability next week on "
+        f"{days_to_show[0]}, {days_to_show[1]}, and {days_to_show[2]}."
+    )

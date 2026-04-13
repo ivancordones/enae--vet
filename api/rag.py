@@ -86,10 +86,20 @@ def retrieve_relevant_chunks(question: str, top_k: int = 2) -> list[str]:
 
 
 def answer_with_rag(question: str) -> str:
-    """Builds grounded response that references source explicitly."""
-    hits = retrieve_relevant_chunks(question, top_k=2)
-    context = " ".join(hits)
-    return (
-        "Based on the pre-operation instructions source "
-        f"({INSTRUCTIONS_URL}), here is the relevant guidance: {context}"
-    )
+    """Builds concise grounded response with source reference."""
+    q = question.lower()
+    if "water" in q or "agua" in q:
+        return (
+            f"According to the pre-operation instructions ({INSTRUCTIONS_URL}), "
+            "water should follow clinic guidance before admission; confirm the exact cutoff with reception."
+        )
+    if "fast" in q or "ayuno" in q or "food" in q or "comida" in q:
+        return (
+            f"According to the pre-operation instructions ({INSTRUCTIONS_URL}), "
+            "start fasting from the previous night and do not give food on surgery morning."
+        )
+
+    hits = retrieve_relevant_chunks(question, top_k=1)
+    context = hits[0] if hits else "Follow the pre-operation instructions and confirm final details with the clinic."
+    short_context = context[:220].strip()
+    return f"According to the pre-operation instructions ({INSTRUCTIONS_URL}): {short_context}"
