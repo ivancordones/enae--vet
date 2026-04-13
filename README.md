@@ -1,155 +1,189 @@
-ENAE VET
-========
+# ENAE VET
 
-Baseline documentation and project skeleton for the ENAE VET system. This ticket (`SCRUM-5` on the Jira SCRUM board) focuses **only** on architecture, tech stack, workflow, and documentation structure. **No product features or veterinary business rules are implemented here.**
+Baseline documentation and project skeleton for the ENAE VET system. This ticket (`SCRUM-5` on the Jira SCRUM board) initially focused on architecture, tech stack, workflow, and documentation structure.
 
-## 1. Target architecture (high‑level)
+Since subsequent tickets (SCRUM-6 onwards), the project now includes an initial implementation of an AI-powered chatbot (LangChain-based), including session memory, RAG, and tool integration at a basic level.
+
+---
+
+## 1. Target architecture (high-level)
 
 - **Web client (frontend)**: React/TypeScript UI for reception/admin users and, later, veterinarians.
 - **Backend API (FastAPI)**: Single source of truth for business logic, validation, and authorization.
-- **Relational database (PostgreSQL)**: Transactional persistence (clients, pets, appointments, services, users/roles, etc. – to be modeled in future tickets).
-- **Authentication & authorization**: Role-based access control, implemented in future tickets.
-- **Integrations (future)**: Email/WhatsApp notifications, calendar, payments (if required).
+- **Relational database (PostgreSQL)**: Transactional persistence (clients, pets, appointments, services, users/roles, etc.).
+- **Authentication & authorization**: Role-based access control (future).
+- **Integrations (future)**: Email/WhatsApp notifications, calendar, payments.
 
 ### Separation of layers
 
-- **Frontend**: Presentation, basic form validation, session handling, API consumption, and error display.
-- **Backend**: Business rules, validation, authorization, persistence orchestration, observability (structured logs, tracing where needed).
-- **Database**: Normalized relational model with versioned migrations.
+- **Frontend**: UI, basic validation, API consumption.
+- **Backend**: Business rules, validation, orchestration.
+- **Database**: Normalized relational model with migrations.
 
 ### Environments
 
-- **Local**: Developer machines (this repo + Docker).
-- **Staging**: Pre‑production, integration testing.
-- **Production**: Live environment.
+- Local  
+- Staging  
+- Production  
 
 ### Principles
 
-- **Single source of truth in backend**: All business rules live in the API, not duplicated in the client.
-- **Evolutionary architecture**: Changes are captured via Architecture Decision Records (ADRs) under `docs/adr/`.
-- **Security by default**: Least privilege, secrets via environment variables, no secrets in the repo.
+- Backend = single source of truth  
+- ADRs for architecture decisions  
+- No secrets in repo  
 
-For more detail, see `docs/architecture/overview.md`.
+---
 
 ## 2. Baseline tech stack
 
 ### Backend
 
-- **Language**: Python 3.12+
-- **Framework**: FastAPI
-- **Validation / schemas**: Pydantic
-- **ORM & migrations**: SQLAlchemy + Alembic
-- **Database**: PostgreSQL
-- **Testing**: pytest (+ `pytest-cov`)
-- **Linting / formatting**: Ruff *or* Black + isort (final choice to be captured in an ADR)
+- Python 3.12+
+- FastAPI
+- Pydantic
+- SQLAlchemy + Alembic
+- PostgreSQL
+- pytest (+ pytest-cov)
 
 ### Frontend (planned)
 
-- **Language**: TypeScript
-- **Framework**: React (Next.js optional for SSR/SEO)
-- **Styling**: TailwindCSS
-- **Testing**: Playwright (e2e) + Vitest/Jest (unit)
+- React + TypeScript
+- TailwindCSS
+- Playwright / Vitest
 
-### Infra / DevOps
+### Infra
 
-- **Containers**: Docker + docker compose
-- **CI**: GitHub Actions (build, lint, tests)
-- **Secrets**: Environment variables (never committed)
+- Docker
+- GitHub Actions
+- Environment variables
 
-### Documentation
-
-- **Format**: Markdown in‑repo
-- **ADRs**: `docs/adr/` for architecture decisions
+---
 
 ## 3. Workflow (SCRUM + Jira)
 
-- **Board**: Jira SCRUM board for the ENAE VET project (`SCRUM` project key).
-- **States**:
-  - **To Do** → **In Progress** → **Code Review** → **QA / Validation** → **Done**.
-- **Definition of Ready**:
-  - Clear objective and context.
-  - Verifiable acceptance criteria.
-  - Dependencies and risks visible.
-  - Priority (and estimation, if used) defined.
-- **Branching**:
-  - One branch per ticket, e.g. `feature/SCRUM-5-readme-and-docs`.
-  - PRs target `main`.
-- **Definition of Done (project)**:
-  - Changes merged into `main`.
-  - Validation completed (tests/QA).
-  - Documentation updated when relevant.
+- Board: Jira (SCRUM)
+- Flow: To Do → In Progress → Code Review → QA → Done
+
+### Branching
+
+- `feature/SCRUM-X-description`
+
+### Definition of Done
+
+- Code merged  
+- Tests passing  
+- Documentation updated  
+
+---
 
 ## 4. Documentation index
 
-Core documentation entry points for ENAE VET:
+- `README.md`
+- `docs/architecture/`
+- `docs/adr/`
+- `docs/api/`
+- `docs/db/`
+- `docs/runbook/`
+- `docs/security/`
 
-- `README.md` (this file): high‑level overview, stack, workflow, and quickstart.
-- `docs/architecture/overview.md`: system architecture details.
-- `docs/architecture/c4/`: C4 diagrams (Context / Container / Component), to be added.
-- `docs/adr/`: Architecture Decision Records.
-- `docs/api/`: API contracts, endpoints, and examples.
-- `docs/db/schema.md`: database schema and data rules.
-- `docs/runbook/`: operational documentation (deployments, troubleshooting).
-- `docs/security/`: security posture, roles, permissions, and secrets handling.
+### Domain (SCRUM-14 / VET-14)
 
-## 5. Out of scope for SCRUM-5
+- `docs/domain/glossary-and-preparation.md`
+- `docs/domain/event-storming-sterilization-booking.md`
+- `docs/domain/business-rules.md`
 
-- Modifying **Cursor** business rules or internal automation.
-- Implementing ENAE VET product features (scheduling, records, billing, etc.).
-- Defining veterinary clinical workflows or medical decision logic.
+---
 
-Those items will be implemented in separate tickets.
+## 5. Out of scope (SCRUM-5)
 
-## 6. Project layout (initial)
+- Modifying Cursor business rules  
+- Full product features (initially)  
+- Clinical decision-making logic  
 
-After this ticket, the repo contains a minimal but testable backend skeleton:
+---
 
-- `pyproject.toml` – Python project metadata and dependencies.
-- `src/enae_vet/app.py` – FastAPI application with a basic health endpoint.
-- `tests/test_health.py` – Smoke test for the health endpoint.
-- `docs/…` – Documentation structure described above.
+## 6. Project layout
 
-## 7. Getting started (local, backend only)
+- `pyproject.toml`
+- `src/enae_vet/app.py`
+- `src/enae_vet/chatbot/server.py`
+- `tests/`
+- `docs/`
 
-1. **Prerequisites**
-   - Python 3.12+
-   - `pip` (or a virtual environment / tool such as `uv`, `poetry`, or `pipenv`)
+---
 
-2. **Install dependencies**
+## 7. Getting started
 
-   ```bash
-   # From the repo root, using a virtual environment is recommended
-   pip install -e ".[dev]"
-   ```
+bash
+pip install -e ".[dev]"
+pytest
+uvicorn enae_vet.app:app --reload
 
-3. **Run tests**
+## 8. Chatbot (SCRUM-6)
 
-   ```bash
-   pytest
-   ```
+The chatbot evolved from the initial baseline:
 
-4. **Run the API locally (development)**
-
-   ```bash
-   uvicorn enae_vet.app:app --reload
-   ```
-
-## 8. Simple chatbot run (SCRUM-6)
-
-The initial chatbot for `SCRUM-6` is intentionally minimal:
-- LangChain in Python.
-- No memory.
-- No RAG.
-- No tools.
-
-Set your OpenAI key and run the Flask service:
-
-```bash
+LangChain-based chatbot
+Session memory using session_id
+Basic RAG integration
+/rag_debug endpoint
+Tool-ready structure
+Run locally
 set OPENAI_API_KEY=your_key_here
 python -m enae_vet.chatbot.server
-```
 
-Then open `http://localhost:5000` and send a message through the basic chat form.
+Open in browser:
 
-> Note: Docker, full DB setup, and CI workflows will be added in future tickets, following this baseline architecture and workflow.
+http://localhost:5051
+
+## 9. AI Chatbot (LangChain-based) — Current Implementation
+
+The ENAE VET system includes an AI chatbot focused on veterinary sterilization assistance.
+
+Architecture (AI layer)
+LLM (Language Model)
+Handles natural language understanding and responses
+System Prompt
+Defines behavior as veterinary assistant (non-diagnostic)
+Session Memory (VET-10)
+Maintains conversation context via session_id
+RAG (Retrieval-Augmented Generation) (VET-11)
+Source: preoperative instructions
+Pipeline:
+fetch
+parse
+inject into context
+Tools (VET-12)
+Availability (mock JSON)
+Designed for future calendar integration
+Backend endpoints
+GET / → chatbot UI
+GET /health → health check
+POST /ask_bot → chatbot interaction
+GET /rag_debug → debug RAG context
+Example request
+{
+  "session_id": "uuid",
+  "message": "Can I sterilize my dog if she is in heat?"
+}
+Example capabilities
+
+The chatbot can:
+
+Answer sterilization questions
+Provide preoperative guidance
+Detect risk situations
+Maintain conversation context
+Use RAG to improve responses
+Important note
+Informational only
+Not a veterinary diagnosis
+Escalates to human when needed
+
+## 10. Future work
+
+Real calendar integration (VET-13)
+Advanced RAG pipeline
+Database integration
+Deployment improvements (Vercel)
 
