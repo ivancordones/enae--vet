@@ -3,35 +3,212 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ENAE VET Survey</title>
+  <title>ENAE VET</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+    }
+
+    .msger {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 700px;
+      height: 82vh;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+    }
+
+    .msger-header {
+      padding: 14px;
+      text-align: center;
+      border-bottom: 2px solid #ddd;
+      background: #eee;
+      color: #333;
+      font-weight: bold;
+      font-size: 22px;
+    }
+
+    .msger-subtitle {
+      text-align: center;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #666;
+      border-bottom: 1px solid #eee;
+    }
+
+    .msger-chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      background: #fafafa;
+    }
+
+    .msg {
+      display: flex;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .msg-bubble {
+      max-width: 78%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .left-msg .msg-bubble {
+      background: #ececec;
+      border-bottom-left-radius: 3px;
+    }
+
+    .right-msg {
+      flex-direction: row-reverse;
+    }
+
+    .right-msg .msg-bubble {
+      background: #579ffb;
+      color: white;
+      border-bottom-right-radius: 3px;
+    }
+
+    .msger-inputarea {
+      display: flex;
+      padding: 10px;
+      border-top: 2px solid #ddd;
+      background: #eee;
+      gap: 8px;
+    }
+
+    .msger-input {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1em;
+      outline: none;
+    }
+
+    .msger-send-btn {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 8px;
+      background: rgb(0, 196, 65);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .msger-send-btn:hover {
+      opacity: 0.92;
+    }
+
+    .status {
+      padding: 0 14px 10px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
-  <h1>ENAE VET</h1>
-  <p>Survey demo deployed on Vercel.</p>
+  <section class="msger">
+    <header class="msger-header">ENAE VET</header>
+    <div class="msger-subtitle">Chatbot with system prompt, memory and RAG</div>
 
-  <form id="surveyForm">
-    <label for="answer">How was your experience?</label><br><br>
-    <input id="answer" type="text" placeholder="Write your answer" />
-    <button type="submit">Send</button>
-  </form>
+    <main class="msger-chat" id="chat"></main>
 
-  <p id="result"></p>
+    <form class="msger-inputarea" id="chat-form">
+      <input
+        type="text"
+        class="msger-input"
+        id="msg"
+        placeholder="Write your message..."
+        autocomplete="off"
+      />
+      <button type="submit" class="msger-send-btn">Send</button>
+    </form>
+
+    <div class="status" id="status">Ready</div>
+  </section>
 
   <script>
-    document.getElementById("surveyForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("chat-form");
+    const input = document.getElementById("msg");
+    const statusEl = document.getElementById("status");
 
-      const answer = document.getElementById("answer").value;
+    let sessionId = localStorage.getItem("enae_vet_session_id");
+    if (!sessionId) {
+      sessionId = crypto.randomUUID();
+      localStorage.setItem("enae_vet_session_id", sessionId);
+    }
 
-      const res = await fetch("/api/survey", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answer })
-      });
+    function appendMessage(text, side) {
+      const row = document.createElement("div");
+      row.className = `msg ${side === "assistant" ? "left-msg" : "right-msg"}`;
 
-      const data = await res.json();
-      document.getElementById("result").innerText = data.message;
+      const bubble = document.createElement("div");
+      bubble.className = "msg-bubble";
+      bubble.textContent = text;
+
+      row.appendChild(bubble);
+      chat.appendChild(row);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    appendMessage(
+      "Hi! I am ENAE VET, a veterinary assistant. Ask me about sterilization, castration, preparation or clinic logistics.",
+      "assistant"
+    );
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendMessage(message, "user");
+      input.value = "";
+      statusEl.textContent = "Thinking...";
+
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            message: message
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.response) {
+          appendMessage(data.response, "assistant");
+          statusEl.textContent = "Ready";
+        } else {
+          appendMessage(data.error || "Unexpected response.", "assistant");
+          statusEl.textContent = "Error";
+        }
+      } catch (error) {
+        appendMessage("Could not connect to the server.", "assistant");
+        statusEl.textContent = "Connection error";
+      }
     });
   </script>
 </body>
 </html>
+
