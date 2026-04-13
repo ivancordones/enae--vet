@@ -174,6 +174,15 @@ def _compose_reply(message: str, state: Any) -> str:
 
     if intent == "booking_or_availability":
         state.booking_intent = True
+        current_heat_mentioned = False
+        current_in_heat: bool | None = None
+        if re.search(r"\bno\s+est[aá]\s+en\s+celo\b|\bnot\s+in\s+heat\b|\bisn['’]?t\s+in\s+heat\b", text):
+            current_heat_mentioned = True
+            current_in_heat = False
+        elif re.search(r"\best[aá]\s+en\s+celo\b|\ben\s+celo\b|\bin\s+heat\b", text):
+            current_heat_mentioned = True
+            current_in_heat = True
+
         day_key = (day or "").lower()
         if "two other dogs" in text and day_key == "thursday" and state.species == "dog":
             return (
@@ -199,19 +208,20 @@ def _compose_reply(message: str, state: Any) -> str:
                 f"{missing_question}"
             )
 
-        if state.in_heat is True:
+        # Only apply heat restriction when explicitly mentioned in current message.
+        if current_heat_mentioned and current_in_heat is True:
             return (
                 "I cannot schedule surgery while the pet is in heat. "
                 "Please wait around 2 months after the heat cycle ends, then I can check dates."
             )
 
         if day is None:
-            return list_available_days(state.species, state.sex, state.in_heat)
+            return list_available_days(state.species, state.sex, current_in_heat)
 
         availability_result = check_mock_availability(
             species=state.species,
             sex=state.sex,
-            in_heat=state.in_heat,
+            in_heat=current_in_heat,
             requested_day=day,
         )
         return (
