@@ -9,3 +9,14 @@ description = "ENAE veterinary chatbot MVP for sterilization coordination."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["api"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "api/**/*.py",
+  "index.html",
+  "README.md",
+  "requirements.txt",
+]
