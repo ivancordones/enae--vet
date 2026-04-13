@@ -1,0 +1,11 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "enae-vet-chatbot-mvp"
+version = "0.1.0"
+description = "ENAE veterinary chatbot MVP for sterilization coordination."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
