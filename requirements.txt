@@ -1,1 +1,1 @@
-openai>=1.0.0
+# This MVP uses Python standard library only.

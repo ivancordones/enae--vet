@@ -1,189 +1,133 @@
-# ENAE VET
+# ENAE VET Chatbot MVP
 
-Baseline documentation and project skeleton for the ENAE VET system. This ticket (`SCRUM-5` on the Jira SCRUM board) initially focused on architecture, tech stack, workflow, and documentation structure.
+Implementation for ENAE Session 6 criteria, aligned with the Jira SCRUM board flow (`SCRUM-6` onwards): a deployable, deterministic chatbot focused on reducing friction for sterilization/castration appointment coordination.
 
-Since subsequent tickets (SCRUM-6 onwards), the project now includes an initial implementation of an AI-powered chatbot (LangChain-based), including session memory, RAG, and tool integration at a basic level.
+## What is implemented
 
----
+- `POST /api/chat` with JSON input `{ "session_id": "...", "message": "..." }` and output `{ "response": "..." }`.
+- `GET /api/health` for deployment/monitor checks.
+- Session memory by `session_id` (species, sex, age, heat status, last intent).
+- Explicit domain guardrails:
+  - sterilization/castration logistics scope
+  - emergency triage out of scope
+  - human handoff path
+  - mandatory analytics note for pets older than 6 years
+- Mock availability tool (invoked only for booking/availability intent).
+- Lightweight RAG retriever grounded in required source:
+  - [Instructions before operation](https://veterinary-clinic-teal.vercel.app/en/docs/instructions-before-operation)
 
-## 1. Target architecture (high-level)
+## Project structure
 
-- **Web client (frontend)**: React/TypeScript UI for reception/admin users and, later, veterinarians.
-- **Backend API (FastAPI)**: Single source of truth for business logic, validation, and authorization.
-- **Relational database (PostgreSQL)**: Transactional persistence (clients, pets, appointments, services, users/roles, etc.).
-- **Authentication & authorization**: Role-based access control (future).
-- **Integrations (future)**: Email/WhatsApp notifications, calendar, payments.
+- `index.html`: simple chat frontend.
+- `api/chat.py`: main orchestration endpoint.
+- `api/health.py`: health check endpoint.
+- `api/domain.py`: intent detection + domain rules + memory entity extraction.
+- `api/availability.py`: mock availability tool with clinic constraints.
+- `api/rag.py`: fetch/chunk/index/retrieve pipeline for pre-op instructions.
+- `requirements.txt`: no external runtime dependencies.
 
-### Separation of layers
+## Local run
 
-- **Frontend**: UI, basic validation, API consumption.
-- **Backend**: Business rules, validation, orchestration.
-- **Database**: Normalized relational model with migrations.
+1. Install Python 3.11+.
+2. Install dependencies:
 
-### Environments
+```bash
+pip install -r requirements.txt
+```
 
-- Local  
-- Staging  
-- Production  
+3. Start Vercel dev server:
 
-### Principles
+```bash
+npx vercel dev
+```
 
-- Backend = single source of truth  
-- ADRs for architecture decisions  
-- No secrets in repo  
+4. Open:
+   - UI: `http://localhost:3000`
+   - Health: `http://localhost:3000/api/health`
 
----
+## Deploy on Vercel
 
-## 2. Baseline tech stack
+```bash
+npx vercel
+```
 
-### Backend
+For production:
 
-- Python 3.12+
-- FastAPI
-- Pydantic
-- SQLAlchemy + Alembic
-- PostgreSQL
-- pytest (+ pytest-cov)
+```bash
+npx vercel --prod
+```
 
-### Frontend (planned)
+### Environment variables
 
-- React + TypeScript
-- TailwindCSS
-- Playwright / Vitest
+No secrets are required for this MVP.  
+The chatbot works without paid LLM APIs.
 
-### Infra
+## RAG design (required source)
 
-- Docker
-- GitHub Actions
-- Environment variables
+Retriever implementation is in `api/rag.py`.
 
----
+1. **Fetch**: downloads the required URL via `urllib`.
+2. **Clean**: strips scripts/styles/HTML tags to plain text.
+3. **Chunk**: fixed-size overlapping chunks (deterministic).
+4. **Index**: in-memory lexical scoring via token overlap.
+5. **Retrieve**: top-k chunks based on query relevance.
+6. **Answering**: response explicitly cites the source URL.
 
-## 3. Workflow (SCRUM + Jira)
+If remote fetch fails, a safe fallback chunk is used so the bot still responds.
 
-- Board: Jira (SCRUM)
-- Flow: To Do → In Progress → Code Review → QA → Done
+## Availability tool logic
 
-### Branching
+Tool implementation: `api/availability.py`.
 
-- `feature/SCRUM-X-description`
+- Operational surgery days: Monday to Thursday.
+- Capacity rule: max 240 minutes/day.
+- Dog rule: max 2 dogs/day.
+- Time estimate per species/sex:
+  - dog male 30 min, dog female 50 min
+  - cat male 12 min, cat female 15 min
+- In-heat rejection: impossible booking is rejected with explanation.
+- Species-specific dropoff windows:
+  - cats: 08:00–09:00
+  - dogs: 09:00–10:30
 
-### Definition of Done
+The tool is called only when booking/availability intent is detected.
 
-- Code merged  
-- Tests passing  
-- Documentation updated  
+## Conversation intents and test mapping (1–10)
 
----
+1. Greeting + scope.
+2. Sterilization info request.
+3. Species memory follow-up.
+4. Older pet (>6 years) analytics requirement.
+5. Emergency triage and out-of-scope handling.
+6. In-heat rule and rejection.
+7. Human handoff request.
+8. Availability check for surgery day.
+9. Booking feasibility with species/day constraints.
+10. Pre-operation instructions via RAG source.
 
-## 4. Documentation index
+## Professor test script (quick)
 
-- `README.md`
-- `docs/architecture/`
-- `docs/adr/`
-- `docs/api/`
-- `docs/db/`
-- `docs/runbook/`
-- `docs/security/`
+Use the same `session_id` for turns 1–10.
 
-### Domain (SCRUM-14 / VET-14)
+1. "Hi"
+2. "I want sterilization information"
+3. "It is a female dog"
+4. "She is 8 years old"
+5. "She is bleeding and it feels urgent"
+6. "Can I book if she is in heat?"
+7. "Please connect me with a human"
+8. "Check availability for Tuesday"
+9. "Check availability for Monday for a dog"
+10. "What should I do before surgery regarding food and water?"
 
-- `docs/domain/glossary-and-preparation.md`
-- `docs/domain/event-storming-sterilization-booking.md`
-- `docs/domain/business-rules.md`
+## Rubric checklist (ENAE Session 6)
 
----
-
-## 5. Out of scope (SCRUM-5)
-
-- Modifying Cursor business rules  
-- Full product features (initially)  
-- Clinical decision-making logic  
-
----
-
-## 6. Project layout
-
-- `pyproject.toml`
-- `src/enae_vet/app.py`
-- `src/enae_vet/chatbot/server.py`
-- `tests/`
-- `docs/`
-
----
-
-## 7. Getting started
-
-bash
-pip install -e ".[dev]"
-pytest
-uvicorn enae_vet.app:app --reload
-
-## 8. Chatbot (SCRUM-6)
-
-The chatbot evolved from the initial baseline:
-
-LangChain-based chatbot
-Session memory using session_id
-Basic RAG integration
-/rag_debug endpoint
-Tool-ready structure
-Run locally
-set OPENAI_API_KEY=your_key_here
-python -m enae_vet.chatbot.server
-
-Open in browser:
-
-http://localhost:5051
-
-## 9. AI Chatbot (LangChain-based) — Current Implementation
-
-The ENAE VET system includes an AI chatbot focused on veterinary sterilization assistance.
-
-Architecture (AI layer)
-LLM (Language Model)
-Handles natural language understanding and responses
-System Prompt
-Defines behavior as veterinary assistant (non-diagnostic)
-Session Memory (VET-10)
-Maintains conversation context via session_id
-RAG (Retrieval-Augmented Generation) (VET-11)
-Source: preoperative instructions
-Pipeline:
-fetch
-parse
-inject into context
-Tools (VET-12)
-Availability (mock JSON)
-Designed for future calendar integration
-Backend endpoints
-GET / → chatbot UI
-GET /health → health check
-POST /ask_bot → chatbot interaction
-GET /rag_debug → debug RAG context
-Example request
-{
-  "session_id": "uuid",
-  "message": "Can I sterilize my dog if she is in heat?"
-}
-Example capabilities
-
-The chatbot can:
-
-Answer sterilization questions
-Provide preoperative guidance
-Detect risk situations
-Maintain conversation context
-Use RAG to improve responses
-Important note
-Informational only
-Not a veterinary diagnosis
-Escalates to human when needed
-
-## 10. Future work
-
-Real calendar integration (VET-13)
-Advanced RAG pipeline
-Database integration
-Deployment improvements (Vercel)
+- [x] Session memory with `session_id`.
+- [x] Explicit domain/system behavior rules in backend.
+- [x] Coherent support for conversations 1–7 without availability tool.
+- [x] Vercel-friendly deployment and no secrets in repo.
+- [x] Jira alignment in scope (`SCRUM-6` onward implementation focus).
+- [x] Demonstrable RAG retriever using required URL.
+- [x] Mock availability tool for conversations 8–9.
+- [x] Intents documented and mapped to conversations 1–10.
 
