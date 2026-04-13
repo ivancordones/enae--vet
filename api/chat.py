@@ -5,7 +5,6 @@ import urllib.request
 import urllib.error
 
 class handler(BaseHTTPRequestHandler):
-
     def _send_json(self, status_code, payload):
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
@@ -57,7 +56,7 @@ class handler(BaseHTTPRequestHandler):
                 url,
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
-                method="POST",
+                method="POST"
             )
 
             with urllib.request.urlopen(req) as response:
