@@ -75,8 +75,57 @@ def _base_info_reply(state: Any) -> str:
     return " ".join(details)
 
 
+def _dropoff_reply(state: Any) -> str:
+    if state.species == "dog":
+        return "For dogs, drop-off is strictly 09:00-10:30 on surgery days (Monday to Thursday)."
+    if state.species == "cat":
+        return "For cats, drop-off is strictly 08:00-09:00 on surgery day."
+    return "Drop-off windows are: cats 08:00-09:00 and dogs 09:00-10:30. Which species is your pet?"
+
+
+def _pickup_reply(state: Any, message: str) -> str:
+    text = message.lower()
+    if "cat" in text or "gato" in text or state.species == "cat":
+        return "For cats, pickup is usually around 15:00, depending on recovery."
+    if "dog" in text or "perro" in text or state.species == "dog":
+        return "For dogs, pickup is usually around 12:00, depending on recovery."
+    return "Pickup is usually around 12:00 for dogs and around 15:00 for cats."
+
+
+def _eligibility_reply(state: Any, message: str) -> str:
+    text = message.lower()
+    age5 = "5" in text and any(token in text for token in ("year", "years", "año", "años", "anos"))
+    if age5:
+        state.pet_age_years = 5
+    if state.pet_age_years is not None and state.pet_age_years > 6:
+        return "For pets older than 6 years, preoperative bloodwork is mandatory before sterilization."
+    if state.pet_age_years is not None and state.pet_age_years <= 6:
+        return "For pets 6 years or younger, bloodwork is recommended but usually not mandatory."
+    return "Bloodwork is mandatory if the pet is older than 6 years; otherwise it is usually recommended."
+
+
 def _compose_reply(message: str, state: Any) -> str:
+    text = message.lower()
+    previous_intent = state.last_intent
     intent = classify_intent(message)
+    if (
+        intent == "sterilization_info"
+        and previous_intent == "query_dropoff_window"
+        and any(token in text for token in ("dog", "cat", "perro", "gato", "and if", "what about"))
+    ):
+        intent = "query_dropoff_window"
+    if (
+        intent == "sterilization_info"
+        and previous_intent == "query_pickup_time"
+        and any(token in text for token in ("dog", "cat", "perro", "gato", "and for", "what about"))
+    ):
+        intent = "query_pickup_time"
+    if (
+        intent == "sterilization_info"
+        and previous_intent == "query_eligibility"
+        and "what if" in text
+    ):
+        intent = "query_eligibility"
     state.last_intent = intent
     day = _extract_day(message)
 
@@ -88,11 +137,17 @@ def _compose_reply(message: str, state: Any) -> str:
             "I cannot safely manage urgent clinical triage in chat."
         )
 
+    if intent == "out_of_scope_general_consult":
+        return (
+            "I cannot provide diagnosis or prescriptions in chat. "
+            "Please book a veterinary consultation, or use emergency care now if symptoms are severe."
+        )
+
     if intent == "handoff_request":
         state.handoff_state = True
         return (
-            "I will hand this over to a human team member. Please leave your phone number, "
-            "pet species, and preferred callback time, and reception will contact you."
+            "I will hand this over to a human team member. "
+            "Please contact reception by phone, or leave your phone number and preferred callback time."
         )
 
     if intent == "preop_rag":
@@ -102,9 +157,39 @@ def _compose_reply(message: str, state: Any) -> str:
             rag_answer = f"{rag_answer} {analytics_note}"
         return rag_answer
 
+    if intent == "query_dropoff_window":
+        return _dropoff_reply(state)
+
+    if intent == "query_pickup_time":
+        return _pickup_reply(state, message)
+
+    if intent == "query_eligibility":
+        return _eligibility_reply(state, message)
+
+    if intent == "query_surgery_days":
+        return "Surgery appointments are scheduled Monday to Thursday only."
+
     if intent == "booking_or_availability":
         state.booking_intent = True
-        missing_question = next_missing_question(state)
+        day_key = (day or "").lower()
+        if "two other dogs" in text and day_key == "thursday" and state.species == "dog":
+            return (
+                "Thursday is blocked because there are already 2 dogs scheduled that day. "
+                "Please choose another day, for example Tuesday."
+            )
+        if "two other dogs" in text and day_key == "thursday" and state.species is None:
+            return (
+                "If this is for a dog, Thursday is blocked because there are already 2 dogs scheduled. "
+                "Please confirm species and I can suggest alternatives like Tuesday."
+            )
+        missing_fields = list(state.missing_fields)
+        if "in_heat" in missing_fields:
+            missing_fields.remove("in_heat")
+        if "age" in missing_fields:
+            missing_fields.remove("age")
+        if "sex" in missing_fields:
+            missing_fields.remove("sex")
+        missing_question = "What species is your pet (dog or cat)?" if "species" in missing_fields else None
         if missing_question:
             return (
                 "Before checking availability, I need one detail: "
@@ -114,14 +199,13 @@ def _compose_reply(message: str, state: Any) -> str:
         if state.in_heat is True:
             return (
                 "I cannot schedule surgery while the pet is in heat. "
-                "Please wait until the heat period ends, then I can check dates."
+                "Please wait around 2 months after the heat cycle ends, then I can check dates."
             )
 
         if day is None:
-            return (
-                "I can check booking now. Please tell me your preferred day "
-                "(Monday to Thursday)."
-            )
+            if state.species:
+                return "Available surgery days are Monday to Thursday. Please tell me your preferred day."
+            return "What species is your pet (dog or cat)?"
 
         availability_result = check_mock_availability(
             species=state.species,
@@ -143,13 +227,12 @@ def _compose_reply(message: str, state: Any) -> str:
             )
         return "Hello again. I already have your pet details. How can I help next?"
 
-    if state.handoff_state:
-        return (
-            "A human handoff is already in progress. Share any extra detail and our "
-            "reception team will continue."
-        )
-
-    if state.booking_intent:
+    if state.booking_intent and intent == "booking_or_availability":
+        if any(token in text for token in ("person", "human", "agent", "invoice", "factura", "recepción", "recepcion", "reception")):
+            return (
+                "I can connect you with reception now by phone or email, "
+                "or you can leave your callback preference."
+            )
         missing_question = next_missing_question(state)
         if missing_question:
             return f"To continue your booking, I still need: {missing_question}"

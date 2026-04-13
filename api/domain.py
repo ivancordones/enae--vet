@@ -46,6 +46,14 @@ BOOKING_TERMS = (
     "día",
     "dia",
     "when can",
+    "next week",
+    "thursday",
+    "tuesday",
+    "lunes",
+    "martes",
+    "miercoles",
+    "miércoles",
+    "jueves",
 )
 
 
@@ -65,6 +73,24 @@ RAG_TERMS = (
     "admission",
     "admisión",
     "admision",
+    "fast",
+    "fasting",
+    "ayuno",
+)
+
+GENERAL_CONSULT_TERMS = (
+    "cough",
+    "fever",
+    "prescribe",
+    "prescription",
+    "vomit",
+    "diarrhea",
+    "diagnosis",
+    "tos",
+    "fiebre",
+    "diagnostico",
+    "diagnóstico",
+    "recetar",
 )
 
 
@@ -139,11 +165,21 @@ def classify_intent(message: str) -> str:
 
     if any(term in text for term in EMERGENCY_TERMS):
         return "emergency"
-    if any(term in text for term in BOOKING_TERMS):
-        return "booking_or_availability"
+    if any(term in text for term in GENERAL_CONSULT_TERMS):
+        return "out_of_scope_general_consult"
     if any(term in text for term in RAG_TERMS):
         return "preop_rag"
-    if any(term in text for term in ("human", "agent", "persona", "recepción", "reception")):
+    if any(term in text for term in ("drop off", "drop-off", "bring my", "entrega", "what about a dog", "what about a cat", "if it were a dog", "if it were a cat")):
+        return "query_dropoff_window"
+    if any(term in text for term in ("pick up", "pickup", "recoger", "recogida")):
+        return "query_pickup_time"
+    if any(term in text for term in ("blood test", "analytic", "analítica", "analitica", "required before sterilisation", "required before sterilization", "what if she were", "what if he were", "what if it were")):
+        return "query_eligibility"
+    if any(term in text for term in ("weekend", "weekends", "fin de semana")):
+        return "query_surgery_days"
+    if any(term in text for term in BOOKING_TERMS):
+        return "booking_or_availability"
+    if any(term in text for term in ("human", "agent", "person", "persona", "recepción", "reception")):
         return "handoff_request"
     if any(term in text for term in ("hi", "hello", "hola", "buenas")):
         return "greeting"
