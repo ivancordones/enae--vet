@@ -13,7 +13,7 @@ def chat():
             return jsonify({"ok": True, "message": "chat route is alive"})
 
         data = request.get_json(silent=True) or {}
-        user_message = (data.get("message") or "").strip()
+        user_message = data.get("message", "")
 
         if not user_message:
             return jsonify({"error": "No message provided"}), 400
@@ -21,19 +21,9 @@ def chat():
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are ENAE VET, a veterinary assistant specialized in "
-                        "sterilization, castration, surgical preparation, and clinic logistics. "
-                        "Answer clearly and professionally."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": user_message,
-                },
-            ],
+                {"role": "system", "content": "You are a veterinary assistant."},
+                {"role": "user", "content": user_message}
+            ]
         )
 
         reply = response.choices[0].message.content
