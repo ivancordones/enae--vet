@@ -1,17 +1,10 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
-
-try:
-    from openai import OpenAI
-except Exception as e:
-    OpenAI = None
-    IMPORT_ERROR = str(e)
-else:
-    IMPORT_ERROR = None
-
+import urllib.request
 
 class handler(BaseHTTPRequestHandler):
+
     def _send_json(self, status_code, payload):
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json")
@@ -23,41 +16,42 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            if OpenAI is None:
-                self._send_json(500, {"error": f"OpenAI import failed: {IMPORT_ERROR}"})
-                return
-
-            api_key = os.environ.get("OPENAI_API_KEY")
-            if not api_key:
-                self._send_json(500, {"error": "OPENAI_API_KEY is missing in Vercel"})
-                return
-
             content_length = int(self.headers.get("Content-Length", 0))
-            raw_body = self.rfile.read(content_length) if content_length > 0 else b"{}"
-            data = json.loads(raw_body.decode("utf-8"))
-            user_message = (data.get("message") or "").strip()
+            body = self.rfile.read(content_length)
+            data = json.loads(body)
 
-            if not user_message:
-                self._send_json(400, {"error": "No message provided"})
+            user_message = data.get("message", "")
+
+            api_key = os.environ.get("GEMINI_API_KEY")
+
+            if not api_key:
+                self._send_json(500, {"error": "Missing GEMINI_API_KEY"})
                 return
 
-            client = OpenAI(api_key=api_key)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
+            payload = {
+                "contents": [
                     {
-                        "role": "system",
-                        "content": "You are ENAE VET, a veterinary assistant. Answer clearly and briefly."
-                    },
-                    {
-                        "role": "user",
-                        "content": user_message
+                        "parts": [
+                            {"text": f"You are a veterinary assistant. {user_message}"}
+                        ]
                     }
                 ]
+            }
+
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST"
             )
 
-            reply = response.choices[0].message.content
+            with urllib.request.urlopen(req) as response:
+                result = json.loads(response.read().decode())
+
+            reply = result["candidates"][0]["content"]["parts"][0]["text"]
+
             self._send_json(200, {"response": reply})
 
         except Exception as e:
