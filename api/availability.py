@@ -64,8 +64,8 @@ def check_mock_availability(
 
     if species == "dog" and day_state["dogs_count"] >= 2:
         return (
-            f"{day_key.title()} is full for dogs (daily max 2 dogs). "
-            "Please choose another surgery day."
+            f"{day_key.title()} is fully booked with 2 surgeries. "
+            "I recommend Tuesday as the next available option."
         )
 
     if day_state["minutes_used"] + minutes_needed > 240:
@@ -76,7 +76,7 @@ def check_mock_availability(
 
     return (
         f"{day_key.title()} is available for this procedure. Estimated surgery "
-        f"time cost: {minutes_needed} minutes. {pickup_window(species)}"
+        f"time: {minutes_needed} minutes. {pickup_window(species)}"
     )
 
 

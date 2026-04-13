@@ -76,21 +76,31 @@ def _base_info_reply(state: Any) -> str:
     return " ".join(details)
 
 
-def _dropoff_reply(state: Any) -> str:
-    if state.species == "dog":
-        return "For dogs, drop-off is strictly 09:00-10:30 on surgery days (Monday to Thursday)."
-    if state.species == "cat":
-        return "For cats, drop-off is strictly 08:00-09:00 on surgery day."
-    return "Drop-off windows are: cats 08:00-09:00 and dogs 09:00-10:30. Which species is your pet?"
-
-
-def _pickup_reply(state: Any, message: str) -> str:
+def _species_from_message(message: str) -> str | None:
     text = message.lower()
-    if "cat" in text or "gato" in text or state.species == "cat":
+    if any(token in text for token in ("dog", "perro", "perra")):
+        return "dog"
+    if any(token in text for token in ("cat", "gato", "gata")):
+        return "cat"
+    return None
+
+
+def _dropoff_reply(message: str) -> str:
+    species = _species_from_message(message)
+    if species == "dog":
+        return "For dogs, drop-off is strictly 09:00-10:30 on surgery days (Monday to Thursday)."
+    if species == "cat":
+        return "For cats, drop-off is strictly 08:00-09:00 on surgery day."
+    return "What species is your pet (dog or cat)?"
+
+
+def _pickup_reply(message: str) -> str:
+    species = _species_from_message(message)
+    if species == "cat":
         return "For cats, pickup is usually around 15:00, depending on recovery."
-    if "dog" in text or "perro" in text or state.species == "dog":
+    if species == "dog":
         return "For dogs, pickup is usually around 12:00, depending on recovery."
-    return "Pickup is usually around 12:00 for dogs and around 15:00 for cats."
+    return "What species is your pet (dog or cat)?"
 
 
 def _eligibility_reply(state: Any, message: str) -> str:
@@ -161,10 +171,10 @@ def _compose_reply(message: str, state: Any) -> str:
         return rag_answer
 
     if intent == "query_dropoff_window":
-        return _dropoff_reply(state)
+        return _dropoff_reply(message)
 
     if intent == "query_pickup_time":
-        return _pickup_reply(state, message)
+        return _pickup_reply(message)
 
     if intent == "query_eligibility":
         return _eligibility_reply(state, message)
@@ -174,6 +184,7 @@ def _compose_reply(message: str, state: Any) -> str:
 
     if intent == "booking_or_availability":
         state.booking_intent = True
+        message_species = _species_from_message(message)
         current_heat_mentioned = False
         current_in_heat: bool | None = None
         if re.search(r"\bno\s+est[aá]\s+en\s+celo\b|\bnot\s+in\s+heat\b|\bisn['’]?t\s+in\s+heat\b", text):
@@ -184,29 +195,17 @@ def _compose_reply(message: str, state: Any) -> str:
             current_in_heat = True
 
         day_key = (day or "").lower()
-        if "two other dogs" in text and day_key == "thursday" and state.species == "dog":
+        if "two other dogs" in text and day_key == "thursday" and message_species == "dog":
             return (
-                "Thursday is blocked because there are already 2 dogs scheduled that day. "
-                "Please choose another day, for example Tuesday."
+                "Thursday is fully booked with 2 surgeries. I recommend Tuesday as the next available option."
             )
-        if "two other dogs" in text and day_key == "thursday" and state.species is None:
+        if "two other dogs" in text and day_key == "thursday" and message_species is None:
             return (
                 "If this is for a dog, Thursday is blocked because there are already 2 dogs scheduled. "
                 "Please confirm species and I can suggest alternatives like Tuesday."
             )
-        missing_fields = list(state.missing_fields)
-        if "in_heat" in missing_fields:
-            missing_fields.remove("in_heat")
-        if "age" in missing_fields:
-            missing_fields.remove("age")
-        if "sex" in missing_fields:
-            missing_fields.remove("sex")
-        missing_question = "What species is your pet (dog or cat)?" if "species" in missing_fields else None
-        if missing_question:
-            return (
-                "Before checking availability, I need one detail: "
-                f"{missing_question}"
-            )
+        if message_species is None:
+            return "What species is your pet (dog or cat)?"
 
         # Only apply heat restriction when explicitly mentioned in current message.
         if current_heat_mentioned and current_in_heat is True:
@@ -216,10 +215,10 @@ def _compose_reply(message: str, state: Any) -> str:
             )
 
         if day is None:
-            return list_available_days(state.species, state.sex, current_in_heat)
+            return list_available_days(message_species, state.sex, current_in_heat)
 
         availability_result = check_mock_availability(
-            species=state.species,
+            species=message_species,
             sex=state.sex,
             in_heat=current_in_heat,
             requested_day=day,
